@@ -300,19 +300,20 @@ function Initialize-Script {
     $script:isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     if ($script:isAdmin) {
         Write-ColorOutput "[ADMIN] Running as Administrator - Windows Defender exclusions will be added" "Green"
-    } else {
-        Write-ColorOutput "[WARNING] Not running as Administrator - Installation must be run with Admin privileges" "Yellow"
-        Write-Host ""
-        $choice = Read-Host "Do you want to restart this script with Administrator privileges? (Y/N)"
-        if ($choice -eq "Y" -or $choice -eq "y") {
-            $scriptPath = $MyInvocation.MyCommand.Definition
-            Write-ColorOutput "Restarting script as Administrator..." "Cyan"
-            Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`"" -Verb RunAs
-            exit
         } else {
+            Write-ColorOutput "[WARNING] Not running as Administrator - Installation must be run with Admin privileges" "Red"
             Write-ColorOutput "Cannot continue without Administrator privileges. Exiting..." "Red"
-            Exit
+            Write-ColorOutput ""
+            Write-ColorOutput "Please restart your Powershell terminal in Admin mode, then run the script again." "Red"
+            Write-Host ""
+        
+        # Pause for user acknowledgment unless skipped
+        if (-not $SkipPause) {
+            Write-Host ""
+            Write-ColorOutput "Press any key to exit..." "Gray"
+            $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
         }
+        Exit
     }
     
     Write-Host ""
