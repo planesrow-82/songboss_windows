@@ -315,15 +315,7 @@ function Initialize-Script {
             Write-ColorOutput ""
             Write-ColorOutput "Please restart your Powershell terminal in Admin mode, then run the script again." "Red"
             Write-Host ""
-        
-        # Pause for user acknowledgment unless skipped
-        if (-not $SkipPause) {
-            Write-Host ""
-            Write-ColorOutput "Press any key to exit..." "Gray"
-            $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
         }
-    }
-    exit
 }
 
 function Cleanup-Resources {
