@@ -97,15 +97,15 @@ function Add-DefenderExclusion {
         try {
             Add-MpPreference -ExclusionPath $Path -ErrorAction Stop
             $script:defenderExclusions += $Path
-            Write-ColorOutput "✓ Added Windows Defender exclusion: $Path" "Green"
+            Write-ColorOutput "Added Windows Defender exclusion: $Path" "Green"
             return $true
         }
         catch {
-            Write-ColorOutput "⚠ Warning: Could not add exclusion for $Path`: $($_.Exception.Message)" "Yellow"
+            Write-ColorOutput "Warning: Could not add exclusion for $Path`: $($_.Exception.Message)" "Yellow"
             return $false
         }
     } else {
-        Write-ColorOutput "⚠ Warning: Not running as administrator - cannot add exclusion for $Path" "Yellow"
+        Write-ColorOutput "Warning: Not running as administrator - cannot add exclusion for $Path" "Yellow"
         return $false
     }
 }
@@ -118,10 +118,10 @@ function Remove-DefenderExclusions {
         foreach ($path in $script:defenderExclusions) {
             try {
                 Remove-MpPreference -ExclusionPath $path -ErrorAction Stop
-                Write-ColorOutput "✓ Removed exclusion: $path" "Gray"
+                Write-ColorOutput "Removed exclusion: $path" "Gray"
             }
             catch {
-                Write-ColorOutput "⚠ Warning: Could not remove exclusion for $path`: $($_.Exception.Message)" "Yellow"
+                Write-ColorOutput "Warning: Could not remove exclusion for $path`: $($_.Exception.Message)" "Yellow"
             }
         }
         
@@ -172,7 +172,7 @@ function Install-FFmpeg {
                 # Update current session PATH
                 $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User")
                 
-                Write-ColorOutput "✓ FFmpeg added to system PATH" "Green"
+                Write-ColorOutput "FFmpeg added to system PATH" "Green"
             } else {
                 Write-ColorOutput "FFmpeg already in system PATH" "Gray"
             }
@@ -258,15 +258,15 @@ function Install-SongBoss {
                 $found = $false
                 foreach ($path in $commonPaths) {
                     if (Test-Path $path) {
-                        Write-ColorOutput "✓ SongBoss installation verified at: $path" "Green"
+                        Write-ColorOutput "SongBoss installation verified at: $path" "Green"
                         $found = $true
                         break
                     }
                 }
                 
                 if (-not $found) {
-                    Write-ColorOutput "⚠ Warning: SongBoss installer reported success but installation directory not found" "Yellow"
-                    Write-ColorOutput "  This may be normal if SongBoss installs to a non-standard location" "Yellow"
+                    Write-ColorOutput "Warning: SongBoss installer reported success but installation directory not found" "Yellow"
+                    Write-ColorOutput "This may be normal if SongBoss installs to a non-standard location" "Yellow"
                 }
             }
             
@@ -291,9 +291,9 @@ function Initialize-Script {
     Clear-Host
     Write-SectionHeader "SILENT INSTALLER SCRIPT"
     Write-ColorOutput "This script will install:" "Cyan"
-    Write-ColorOutput "  • FFmpeg (Full version)" "White"
-    Write-ColorOutput "  • VLC Media Player" "White"
-    Write-ColorOutput "  • SongBoss v0.9.7.2" "White"
+    Write-ColorOutput "FFmpeg (Full version)" "White"
+    Write-ColorOutput "VLC Media Player" "White"
+    Write-ColorOutput "SongBoss v0.9.7.2" "White"
     Write-Host ""
     
     # Check admin status
@@ -302,7 +302,7 @@ function Initialize-Script {
         Write-ColorOutput "[ADMIN] Running as Administrator - Windows Defender exclusions will be added" "Green"
     } else {
         Write-ColorOutput "[WARNING] Not running as Administrator - some features may be limited" "Yellow"
-        Write-ColorOutput "          For best results, run PowerShell as Administrator" "Yellow"
+        Write-ColorOutput "For best results, run PowerShell as Administrator" "Yellow"
     }
     
     Write-Host ""
