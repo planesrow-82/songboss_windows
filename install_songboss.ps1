@@ -1,6 +1,6 @@
 # Silent Installer Script for FFmpeg, VLC, and SongBoss
 # Version: 1.0
-# Usage: iwr -useb "iwr -useb "https://raw.githubusercontent.com/planesrow-82/songboss_windows/main/install_songboss.ps1" | iex
+# Usage: iwr -useb "https://raw.githubusercontent.com/planesrow-82/songboss_windows/main/install_songboss.ps1" | iex
 
 param(
     [switch]$SkipPause
