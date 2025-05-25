@@ -311,15 +311,16 @@ function Initialize-Script {
         New-Item -ItemType Directory -Path $script:tempDir -Force | Out-Null
         Write-ColorOutput "Created temporary directory: $script:tempDir" "Gray"
 
+        return $true
+
         } else {
             Write-ColorOutput "[WARNING] Not running as Administrator - Installation must be run with Admin privileges" "Red"
             Write-ColorOutput "Cannot continue without Administrator privileges. Exiting..." "Red"
             Write-ColorOutput ""
             Write-ColorOutput "Please restart your Powershell terminal in Admin mode, then run the script again." "Red"
             Write-Host ""
-            Pause
-            Exit
-        }
+            return $false
+        }    
 }
 
 function Cleanup-Resources {
@@ -344,7 +345,12 @@ function Cleanup-Resources {
 
 # Main execution
 try {
-    Initialize-Script
+
+    if (!(Initialize-Script)) {
+        exit
+    } else {
+        Initialize-Script
+    }
 
     # Installation results tracking
     $results = @{
