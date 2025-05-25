@@ -299,7 +299,16 @@ function Initialize-Script {
     # Check admin status
     $script:isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     if ($script:isAdmin) {
-        Write-ColorOutput "[ADMIN] Running as Administrator - Windows Defender exclusions will be added" "Green"
+        Write-ColorOutput "[ADMIN] Running as Administrator - Windows Defender exclusions will be added" "Green"    
+        
+        Write-Host ""
+        Write-ColorOutput "Starting installation process..." "Green"
+
+        # Create temp directory
+        $script:tempDir = Join-Path $env:TEMP "SilentInstaller_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+        New-Item -ItemType Directory -Path $script:tempDir -Force | Out-Null
+        Write-ColorOutput "Created temporary directory: $script:tempDir" "Gray"
+
         } else {
             Write-ColorOutput "[WARNING] Not running as Administrator - Installation must be run with Admin privileges" "Red"
             Write-ColorOutput "Cannot continue without Administrator privileges. Exiting..." "Red"
@@ -340,16 +349,6 @@ function Cleanup-Resources {
 # Main execution
 try {
     Initialize-Script
-    
-        
-    Write-Host ""
-    Write-ColorOutput "Starting installation process..." "Green"
-
-    # Create temp directory
-    $script:tempDir = Join-Path $env:TEMP "SilentInstaller_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
-    New-Item -ItemType Directory -Path $script:tempDir -Force | Out-Null
-    Write-ColorOutput "Created temporary directory: $script:tempDir" "Gray"
-
 
     # Installation results tracking
     $results = @{
