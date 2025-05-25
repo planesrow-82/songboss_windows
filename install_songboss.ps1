@@ -315,14 +315,6 @@ function Initialize-Script {
         }
         Exit
     }
-    
-    Write-Host ""
-    Write-ColorOutput "Starting installation process..." "Green"
-
-    # Create temp directory
-    $script:tempDir = Join-Path $env:TEMP "SilentInstaller_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
-    New-Item -ItemType Directory -Path $script:tempDir -Force | Out-Null
-    Write-ColorOutput "Created temporary directory: $script:tempDir" "Gray"
 }
 
 function Cleanup-Resources {
@@ -349,6 +341,16 @@ function Cleanup-Resources {
 try {
     Initialize-Script
     
+        
+    Write-Host ""
+    Write-ColorOutput "Starting installation process..." "Green"
+
+    # Create temp directory
+    $script:tempDir = Join-Path $env:TEMP "SilentInstaller_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+    New-Item -ItemType Directory -Path $script:tempDir -Force | Out-Null
+    Write-ColorOutput "Created temporary directory: $script:tempDir" "Gray"
+
+
     # Installation results tracking
     $results = @{
         FFmpeg = $false
