@@ -265,15 +265,12 @@ function Install-SongBoss {
                 }
                 
                 if (-not $found) {
-                    Write-ColorOutput "[ERROR] SongBoss installer reported success but installation directory not found" "Red"
-                    Write-ColorOutput "This may be normal if SongBoss installs to a non-standard location, but will be treated as a failure." "Red"
-                    return $false
-                } else {
-                    return $true
+                    Write-ColorOutput "Warning: SongBoss installer reported success but installation directory not found" "Yellow"
+                    Write-ColorOutput "This may be normal if SongBoss installs to a non-standard location" "Yellow"
                 }
-            } else {
-                return $false
             }
+            
+            return $installResult
         } else {
             Write-ColorOutput "[ERROR] Failed to download SongBoss installer" "Red"
             return $false
@@ -284,6 +281,7 @@ function Install-SongBoss {
         return $false
     }
 }
+
 #endregion
 
 #region Main Script
@@ -381,7 +379,7 @@ try {
     $results.SongBoss = Install-SongBoss
     
     # Show results
-    Show-Results -Results $results
+    #Show-Results -Results $results
 }
 catch {
     Write-ColorOutput "[ERROR] Script execution failed: $($_.Exception.Message)" "Red"
