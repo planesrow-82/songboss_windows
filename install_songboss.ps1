@@ -2,6 +2,8 @@
 # Version: 1.1
 # Usage: iwr -useb "https://raw.githubusercontent.com/planesrow-82/songboss_windows/refs/heads/main/install_songboss.ps1" | iex
 
+[System.GC]::Collect()
+
 param(
     [switch]$SkipPause
 )
