@@ -301,17 +301,17 @@ function Initialize-Script {
     if ($script:isAdmin) {
         Write-ColorOutput "[ADMIN] Running as Administrator - Windows Defender exclusions will be added" "Green"
     } else {
-        Write-ColorOutput "[WARNING] Not running as Administrator - some features may be limited" "Yellow"
-        Write-ColorOutput "For best results, run PowerShell as Administrator" "Yellow"
+        Write-ColorOutput "[WARNING] Not running as Administrator - Installation must be run with Admin privileges" "Yellow"
         Write-Host ""
-        $choice = Read-Host "Do you want to restart this script as Administrator? (Y/N)"
+        $choice = Read-Host "Do you want to restart this script with Administrator privileges? (Y/N)"
         if ($choice -eq "Y" -or $choice -eq "y") {
             $scriptPath = $MyInvocation.MyCommand.Definition
             Write-ColorOutput "Restarting script as Administrator..." "Cyan"
             Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`"" -Verb RunAs
             exit
         } else {
-            Write-ColorOutput "Continuing without Administrator privileges. Some features may not work." "Yellow"
+            Write-ColorOutput "Cannot continue without Administrator privileges. Exiting..." "Red"
+            Exit
         }
     }
     
