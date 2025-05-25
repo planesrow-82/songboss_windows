@@ -252,11 +252,11 @@ try {
     
     Write-Host ""
     if ($successCount -eq $results.Count) {
-        Write-ColorOutput "🎉 All applications installed successfully! ($successCount/$($results.Count))" "Green"
+        Write-ColorOutput "All applications installed successfully! ($successCount/$($results.Count))" "Green"
     } elseif ($successCount -gt 0) {
-        Write-ColorOutput "⚠ Partial success: $successCount out of $($results.Count) applications installed" "Yellow"
+        Write-ColorOutput "Partial success: $successCount out of $($results.Count) applications installed" "Yellow"
     } else {
-        Write-ColorOutput "❌ Installation failed for all applications" "Red"
+        Write-ColorOutput "Installation failed for all applications" "Red"
     }
     
     Write-Host ""
@@ -264,7 +264,7 @@ try {
 
 }
 catch {
-    Write-ColorOutput "❌ Script execution failed: $($_.Exception.Message)" "Red"
+    Write-ColorOutput "Script execution failed: $($_.Exception.Message)" "Red"
 }
 finally {
     # Pause for user acknowledgment unless skipped
