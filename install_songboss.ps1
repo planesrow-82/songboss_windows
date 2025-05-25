@@ -243,10 +243,10 @@ try {
     $successCount = 0
     foreach ($app in $results.Keys) {
         if ($results[$app]) {
-            Write-ColorOutput "✓ $app - SUCCESS" "Green"
+            Write-ColorOutput "$app - SUCCESS" "Green"
             $successCount++
         } else {
-            Write-ColorOutput "✗ $app - FAILED" "Red"
+            Write-ColorOutput "$app - FAILED" "Red"
         }
     }
     
