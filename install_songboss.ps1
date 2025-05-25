@@ -303,6 +303,16 @@ function Initialize-Script {
     } else {
         Write-ColorOutput "[WARNING] Not running as Administrator - some features may be limited" "Yellow"
         Write-ColorOutput "For best results, run PowerShell as Administrator" "Yellow"
+        Write-Host ""
+        $choice = Read-Host "Do you want to restart this script as Administrator? (Y/N)"
+        if ($choice -eq "Y" -or $choice -eq "y") {
+            $scriptPath = $MyInvocation.MyCommand.Definition
+            Write-ColorOutput "Restarting script as Administrator..." "Cyan"
+            Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`"" -Verb RunAs
+            exit
+        } else {
+            Write-ColorOutput "Continuing without Administrator privileges. Some features may not work." "Yellow"
+        }
     }
     
     Write-Host ""
