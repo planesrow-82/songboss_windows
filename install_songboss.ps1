@@ -321,8 +321,8 @@ function Initialize-Script {
             Write-Host ""
             Write-ColorOutput "Press any key to exit..." "Gray"
             $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+            exit
         }
-        break
     }
 }
 
