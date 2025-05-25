@@ -315,6 +315,8 @@ function Initialize-Script {
             Write-ColorOutput ""
             Write-ColorOutput "Please restart your Powershell terminal in Admin mode, then run the script again." "Red"
             Write-Host ""
+            Pause
+            Exit
         }
 }
 
