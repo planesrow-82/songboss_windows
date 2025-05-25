@@ -1,405 +1,180 @@
-# Silent Installer Script for FFmpeg, VLC, and SongBoss
-# Version: 1.1
-# Usage: iwr -useb "https://raw.githubusercontent.com/yourusername/yourrepo/main/install.ps1" | iex
-
-param(
-    [switch]$SkipPause
-)
-
-# Set error action preference
-$ErrorActionPreference = "Stop"
-
-# Global variables
-$script:tempDir = ""
-$script:isAdmin = $false
-$script:defenderExclusions = @()
-
-#region Utility Functions
+$LogFile = "$env:TEMP\install_log.txt"
+Remove-Item -Path $LogFile -ErrorAction SilentlyContinue
 
 function Write-ColorOutput {
-    param(
+    param (
         [string]$Message,
         [string]$Color = "White"
     )
     Write-Host $Message -ForegroundColor $Color
-}
-
-function Write-SectionHeader {
-    param([string]$Title)
-    Write-Host ""
-    Write-Host ("=" * 60) -ForegroundColor Cyan
-    Write-Host $Title -ForegroundColor Yellow
-    Write-Host ("=" * 60) -ForegroundColor Cyan
-    Write-Host ""
+    Add-Content -Path $LogFile -Value $Message
 }
 
 function Download-FileWithProgress {
-    param(
-        [string]$Url,
-        [string]$OutputPath,
-        [string]$Description
+    param (
+        [Parameter(Mandatory = $true)][string]$Url,
+        [Parameter(Mandatory = $true)][string]$OutputPath,
+        [Parameter()][string]$Description = "Downloading file",
+        [int]$MaxRetries = 3
     )
-    
-    try {
-        Write-ColorOutput "Downloading $Description..." "Yellow"
-        Write-ColorOutput "URL: $Url" "Gray"
-        Write-ColorOutput "Destination: $OutputPath" "Gray"
-        
-        $webClient = New-Object System.Net.WebClient
-        $webClient.DownloadFile($Url, $OutputPath)
-        $webClient.Dispose()
-        
-        if (Test-Path $OutputPath) {
-            $fileSize = (Get-Item $OutputPath).Length / 1MB
-            Write-ColorOutput "[SUCCESS] Download completed successfully! Size: $([math]::Round($fileSize, 2)) MB" "Green"
+
+    $attempt = 0
+    do {
+        try {
+            $attempt++
+            Write-ColorOutput "$Description (Attempt $attempt): $Url" "Cyan"
+            Invoke-WebRequest -Uri $Url -OutFile $OutputPath -UseBasicParsing
+            Write-ColorOutput "[SUCCESS] Downloaded to $OutputPath" "Green"
             return $true
-        } else {
-            throw "File not found after download"
+        } catch {
+            Write-ColorOutput "[ERROR] Attempt $attempt failed: $_" "Red"
         }
-    }
-    catch {
-        Write-ColorOutput "[ERROR] Download failed: $($_.Exception.Message)" "Red"
-        return $false
-    }
+    } while ($attempt -lt $MaxRetries)
+
+    Write-ColorOutput "[ERROR] All $MaxRetries download attempts failed." "Red"
+    return $false
 }
 
 function Install-Application {
-    param(
-        [string]$InstallerPath,
-        [string]$Arguments,
-        [string]$AppName
+    param (
+        [Parameter(Mandatory = $true)][string]$InstallerPath,
+        [Parameter()][string]$Arguments = "/S",
+        [Parameter()][string]$AppName = "Application"
     )
-    
+
     try {
-        Write-ColorOutput "Installing $AppName..." "Yellow"
-        Write-ColorOutput "Running: $InstallerPath $Arguments" "Gray"
-        
-        $process = Start-Process -FilePath $InstallerPath -ArgumentList $Arguments -Wait -PassThru -NoNewWindow
-        
+        Write-ColorOutput "Installing $AppName from $InstallerPath..." "Cyan"
+        $process = Start-Process -FilePath $InstallerPath -ArgumentList $Arguments -Wait -PassThru
         if ($process.ExitCode -eq 0) {
             Write-ColorOutput "[SUCCESS] $AppName installed successfully!" "Green"
             return $true
         } else {
-            Write-ColorOutput "[ERROR] $AppName installation failed with exit code: $($process.ExitCode)" "Red"
+            Write-ColorOutput "[ERROR] $AppName installer exited with code $($process.ExitCode)" "Red"
             return $false
         }
-    }
-    catch {
-        Write-ColorOutput "[ERROR] Error installing $AppName`: $($_.Exception.Message)" "Red"
+    } catch {
+        Write-ColorOutput "[ERROR] Failed to install $AppName : $_" "Red"
         return $false
     }
 }
 
-function Add-DefenderExclusion {
-    param([string]$Path)
-    
-    if ($script:isAdmin) {
+function Add-ToPath {
+    param (
+        [Parameter(Mandatory = $true)][string]$NewPath
+    )
+
+    $envPath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+    if ($envPath -notlike "*$NewPath*") {
         try {
-            Add-MpPreference -ExclusionPath $Path -ErrorAction Stop
-            $script:defenderExclusions += $Path
-            Write-ColorOutput "Added Windows Defender exclusion: $Path" "Green"
+            [Environment]::SetEnvironmentVariable("Path", "$envPath;$NewPath", "Machine")
+            Write-ColorOutput "[SUCCESS] Added '$NewPath' to system PATH. You may need to restart for changes to take effect." "Yellow"
             return $true
-        }
-        catch {
-            Write-ColorOutput "Warning: Could not add exclusion for $Path`: $($_.Exception.Message)" "Yellow"
+        } catch {
+            Write-ColorOutput "[ERROR] Failed to update PATH: $_" "Red"
             return $false
         }
     } else {
-        Write-ColorOutput "Warning: Not running as administrator - cannot add exclusion for $Path" "Yellow"
-        return $false
+        Write-ColorOutput "[INFO] '$NewPath' is already in PATH." "Gray"
+        return $true
     }
 }
-
-function Remove-DefenderExclusions {
-    if ($script:defenderExclusions.Count -gt 0 -and $script:isAdmin) {
-        Write-SectionHeader "REMOVING WINDOWS DEFENDER EXCLUSIONS"
-        Write-ColorOutput "Removing temporary Windows Defender exclusions..." "Yellow"
-        
-        foreach ($path in $script:defenderExclusions) {
-            try {
-                Remove-MpPreference -ExclusionPath $path -ErrorAction Stop
-                Write-ColorOutput "Removed exclusion: $path" "Gray"
-            }
-            catch {
-                Write-ColorOutput "Warning: Could not remove exclusion for $path`: $($_.Exception.Message)" "Yellow"
-            }
-        }
-        
-        Write-ColorOutput "[SUCCESS] Windows Defender exclusions cleanup completed" "Green"
-        $script:defenderExclusions = @()
-    }
-}
-
-#endregion
-
-#region Installation Functions
 
 function Install-FFmpeg {
-    Write-SectionHeader "INSTALLING FFMPEG"
-    
-    try {
-        $ffmpegUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
-        $ffmpegZip = Join-Path $script:tempDir "ffmpeg.zip"
-        $ffmpegExtracted = Join-Path $script:tempDir "ffmpeg"
-        
-        if (Download-FileWithProgress -Url $ffmpegUrl -OutputPath $ffmpegZip -Description "FFmpeg") {
-            Write-ColorOutput "Extracting FFmpeg..." "Yellow"
-            Expand-Archive -Path $ffmpegZip -DestinationPath $ffmpegExtracted -Force
-            
-            # Find the extracted ffmpeg folder
-            $ffmpegBinFolder = Get-ChildItem -Path $ffmpegExtracted -Directory | Select-Object -First 1
-            $destinationPath = "C:\Program Files\FFmpeg"
-            
-            # Remove existing installation if present
-            if (Test-Path $destinationPath) {
-                Write-ColorOutput "Removing existing FFmpeg installation..." "Yellow"
-                Remove-Item $destinationPath -Recurse -Force
-            }
-            
-            # Copy to Program Files
-            Write-ColorOutput "Installing FFmpeg to $destinationPath..." "Yellow"
-            Copy-Item -Path $ffmpegBinFolder.FullName -Destination $destinationPath -Recurse -Force
-            
-            # Add to system PATH
-            $ffmpegBinPath = Join-Path $destinationPath "bin"
-            $currentPath = [Environment]::GetEnvironmentVariable("Path", "Machine")
-            
-            if ($currentPath -notlike "*$ffmpegBinPath*") {
-                Write-ColorOutput "Adding FFmpeg to system PATH..." "Yellow"
-                $newPath = "$currentPath;$ffmpegBinPath"
-                [Environment]::SetEnvironmentVariable("Path", $newPath, "Machine")
-                
-                # Update current session PATH
-                $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User")
-                
-                Write-ColorOutput "FFmpeg added to system PATH" "Green"
-            } else {
-                Write-ColorOutput "FFmpeg already in system PATH" "Gray"
-            }
-            
-            # Verify installation
-            if (Test-Path (Join-Path $ffmpegBinPath "ffmpeg.exe")) {
-                Write-ColorOutput "[SUCCESS] FFmpeg installed successfully!" "Green"
-                return $true
-            } else {
-                throw "FFmpeg executable not found after installation"
-            }
-        }
-        
+    $ffmpegUrl = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+    $zipPath = "$env:TEMP\ffmpeg.zip"
+    $extractPath = "$env:TEMP\ffmpeg"
+    $destinationPath = "C:\Program Files\FFmpeg"
+    $ffmpegBinPath = Join-Path $destinationPath "bin"
+
+    if (-not (Download-FileWithProgress -Url $ffmpegUrl -OutputPath $zipPath -Description "Downloading FFmpeg")) {
         return $false
     }
-    catch {
-        Write-ColorOutput "[ERROR] FFmpeg installation failed: $($_.Exception.Message)" "Red"
+
+    try {
+        Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
+        $innerFolder = Get-ChildItem $extractPath | Where-Object { $_.PSIsContainer } | Select-Object -First 1
+        if (-not $innerFolder) {
+            Write-ColorOutput "[ERROR] FFmpeg archive structure is unexpected." "Red"
+            return $false
+        }
+
+        Copy-Item -Path $innerFolder.FullName -Destination $destinationPath -Recurse -Force
+
+        if (-not (Test-Path (Join-Path $ffmpegBinPath "ffmpeg.exe"))) {
+            Write-ColorOutput "[ERROR] FFmpeg binary not found after installation." "Red"
+            return $false
+        }
+
+        Add-ToPath -NewPath $ffmpegBinPath
+
+        Write-ColorOutput "[SUCCESS] FFmpeg installed successfully!" "Green"
+        return $true
+    } catch {
+        Write-ColorOutput "[ERROR] Failed to install FFmpeg: $_" "Red"
         return $false
     }
 }
 
 function Install-VLC {
-    Write-SectionHeader "INSTALLING VLC MEDIA PLAYER"
-    
-    try {
-        $vlcUrl = "https://download.videolan.org/pub/videolan/vlc/last/win64/vlc-3.0.20-win64.exe"
-        $vlcInstaller = Join-Path $script:tempDir "vlc-installer.exe"
-        
-        if (Download-FileWithProgress -Url $vlcUrl -OutputPath $vlcInstaller -Description "VLC Media Player") {
-            return (Install-Application -InstallerPath $vlcInstaller -Arguments "/S" -AppName "VLC Media Player")
-        }
-        
+    $vlcUrl = "https://get.videolan.org/vlc/3.0.20/win64/vlc-3.0.20-win64.exe"
+    $installerPath = "$env:TEMP\vlc_installer.exe"
+    if (-not (Download-FileWithProgress -Url $vlcUrl -OutputPath $installerPath -Description "Downloading VLC Media Player")) {
         return $false
     }
-    catch {
-        Write-ColorOutput "[ERROR] VLC installation failed: $($_.Exception.Message)" "Red"
-        return $false
-    }
+
+    return Install-Application -InstallerPath $installerPath -Arguments "/S" -AppName "VLC Media Player"
 }
 
 function Install-SongBoss {
-    Write-SectionHeader "INSTALLING SONGBOSS"
-    
-    try {
-        $songBossUrl = "https://sourceforge.net/projects/songboss/files/Windows_11/SongBoss_0.9.7.2_Win11.exe/download"
-        $songBossInstaller = Join-Path $script:tempDir "SongBoss_installer.exe"
-        
-        if (Download-FileWithProgress -Url $songBossUrl -OutputPath $songBossInstaller -Description "SongBoss v0.9.7.2") {
-            
-            # Add Windows Defender exclusions
-            Write-ColorOutput "Adding Windows Defender exclusions for SongBoss..." "Yellow"
-            
-            # Add exclusion for installer
-            Add-DefenderExclusion -Path $songBossInstaller
-            
-            # Add exclusions for potential installation directories
-            $exclusionPaths = @(
-                "${env:ProgramFiles}\SongBoss",
-                "${env:ProgramFiles(x86)}\SongBoss",
-                "${env:LOCALAPPDATA}\SongBoss",
-                "${env:APPDATA}\SongBoss"
-            )
-            
-            foreach ($path in $exclusionPaths) {
-                Add-DefenderExclusion -Path $path
-            }
-            
-            # Brief pause to allow exclusions to take effect
-            Start-Sleep -Seconds 3
-            
-            # Run the installer and capture the result
-            $installResult = Install-Application -InstallerPath $songBossInstaller -Arguments "/S" -AppName "SongBoss"
-            
-            # Additional verification - check if SongBoss was actually installed
-            if ($installResult) {
-                $commonPaths = @(
-                    "${env:ProgramFiles}\SongBoss",
-                    "${env:ProgramFiles(x86)}\SongBoss",
-                    "${env:LOCALAPPDATA}\SongBoss",
-                    "${env:APPDATA}\SongBoss"
-                )
-                
-                $found = $false
-                foreach ($path in $commonPaths) {
-                    if (Test-Path $path) {
-                        Write-ColorOutput "SongBoss installation verified at: $path" "Green"
-                        $found = $true
-                        break
-                    }
-                }
-                
-                if (-not $found) {
-                    Write-ColorOutput "Warning: SongBoss installer reported success but installation directory not found" "Yellow"
-                    Write-ColorOutput "This may be normal if SongBoss installs to a non-standard location" "Yellow"
-                }
-            }
-            
-            return $installResult
-        } else {
-            Write-ColorOutput "[ERROR] Failed to download SongBoss installer" "Red"
-            return $false
+    $songBossUrl = "https://www.dropbox.com/scl/fi/8duuqfnixot41plvg6xn7/SongBossSetup.exe?rlkey=23dkyoy3rcc9ry1c2jhdfnk7x&dl=1"
+    $installerPath = "$env:TEMP\SongBossSetup.exe"
+    if (-not (Download-FileWithProgress -Url $songBossUrl -OutputPath $installerPath -Description "Downloading SongBoss")) {
+        return $false
+    }
+
+    $installResult = Install-Application -InstallerPath $installerPath -Arguments "/S" -AppName "SongBoss"
+
+    # Verify installation
+    $possiblePaths = @(
+        "C:\Program Files\SongBoss",
+        "C:\Program Files (x86)\SongBoss"
+    )
+    $found = $false
+    foreach ($path in $possiblePaths) {
+        if (Test-Path $path) {
+            $found = $true
+            break
         }
     }
-    catch {
-        Write-ColorOutput "[ERROR] SongBoss installation failed: $($_.Exception.Message)" "Red"
+
+    if ($installResult -and $found) {
+        Write-ColorOutput "[SUCCESS] SongBoss installed successfully!" "Green"
+        return $true
+    } else {
+        Write-ColorOutput "[ERROR] SongBoss installation verification failed" "Red"
         return $false
     }
 }
 
-#endregion
+# ---------- Main Execution ----------
 
-#region Main Script
+$results = @{
+    FFmpeg = $false
+    VLC = $false
+    SongBoss = $false
+}
 
-function Initialize-Script {
-    # Script header
-    Clear-Host
-    Write-SectionHeader "SILENT INSTALLER SCRIPT"
-    Write-ColorOutput "This script will install:" "Cyan"
-    Write-ColorOutput "FFmpeg (Full version)" "White"
-    Write-ColorOutput "VLC Media Player" "White"
-    Write-ColorOutput "SongBoss v0.9.7.2" "White"
-    Write-Host ""
-    
-    # Check admin status
-    $script:isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    if ($script:isAdmin) {
-        Write-ColorOutput "[ADMIN] Running as Administrator - Windows Defender exclusions will be added" "Green"
+try { $results.FFmpeg = Install-FFmpeg } catch { $results.FFmpeg = $false }
+try { $results.VLC = Install-VLC } catch { $results.VLC = $false }
+try { $results.SongBoss = Install-SongBoss } catch { $results.SongBoss = $false }
+
+Write-ColorOutput "`n========== INSTALLATION SUMMARY ==========" "Cyan"
+foreach ($app in $results.Keys) {
+    if ($results[$app]) {
+        Write-ColorOutput "$app Installed Successfully" "Green"
     } else {
-        Write-ColorOutput "[WARNING] Not running as Administrator - some features may be limited" "Yellow"
-        Write-ColorOutput "For best results, run PowerShell as Administrator" "Yellow"
-    }
-    
-    Write-Host ""
-    Write-ColorOutput "Starting installation process..." "Green"
-
-    # Create temp directory
-    $script:tempDir = Join-Path $env:TEMP "SilentInstaller_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
-    New-Item -ItemType Directory -Path $script:tempDir -Force | Out-Null
-    Write-ColorOutput "Created temporary directory: $script:tempDir" "Gray"
-}
-
-function Show-Results {
-    param([hashtable]$Results)
-    
-    Write-SectionHeader "INSTALLATION SUMMARY"
-    
-    $successCount = 0
-    foreach ($app in $Results.Keys) {
-        if ($Results[$app]) {
-            Write-ColorOutput "[SUCCESS] $app - INSTALLED" "Green"
-            $successCount++
-        } else {
-            Write-ColorOutput "[FAILED] $app - FAILED" "Red"
-        }
-    }
-    
-    Write-Host ""
-    if ($successCount -eq $Results.Count) {
-        Write-ColorOutput "[COMPLETE] All applications installed successfully! ($successCount/$($Results.Count))" "Green"
-    } elseif ($successCount -gt 0) {
-        Write-ColorOutput "[PARTIAL] Partial success: $successCount out of $($Results.Count) applications installed" "Yellow"
-    } else {
-        Write-ColorOutput "[FAILED] Installation failed for all applications" "Red"
-    }
-    
-    Write-Host ""
-    Write-ColorOutput "Note: You may need to restart your command prompt or system for PATH changes to take effect." "Cyan"
-}
-
-function Cleanup-Resources {
-    Write-SectionHeader "CLEANUP"
-    
-    # Remove Windows Defender exclusions first
-    Remove-DefenderExclusions
-    
-    # Clean up temporary files
-    try {
-        Write-ColorOutput "Cleaning up temporary files..." "Yellow"
-        if (Test-Path $script:tempDir) {
-            Remove-Item -Path $script:tempDir -Recurse -Force -ErrorAction Stop
-            Write-ColorOutput "[SUCCESS] Temporary files cleaned up" "Green"
-        }
-    }
-    catch {
-        Write-ColorOutput "[WARNING] Could not clean up temporary files at $script:tempDir" "Yellow"
-        Write-ColorOutput "You may need to manually delete this folder later." "Yellow"
+        Write-ColorOutput "$app Installation Failed" "Red"
     }
 }
 
-# Main execution
-try {
-    Initialize-Script
-    
-    # Installation results tracking
-    $results = @{
-        FFmpeg = $false
-        VLC = $false
-        SongBoss = $false
-    }
-
-    # Run installations
-    $results.FFmpeg = Install-FFmpeg
-    $results.VLC = Install-VLC
-    $results.SongBoss = Install-SongBoss
-    
-    # Show results
-    Show-Results -Results $results
-}
-catch {
-    Write-ColorOutput "[ERROR] Script execution failed: $($_.Exception.Message)" "Red"
-    Write-ColorOutput "Stack trace: $($_.ScriptStackTrace)" "Gray"
-}
-finally {
-    # Always cleanup resources
-    try {
-        Cleanup-Resources
-    }
-    catch {
-        Write-ColorOutput "[WARNING] Cleanup failed: $($_.Exception.Message)" "Yellow"
-    }
-    
-    # Pause for user acknowledgment unless skipped
-    if (-not $SkipPause) {
-        Write-Host ""
-        Write-ColorOutput "Press any key to exit..." "Gray"
-        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-    }
-}
-
-#endregion
+Write-ColorOutput "`nInstallation log saved to: $LogFile" "Gray"
