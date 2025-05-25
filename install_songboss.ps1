@@ -226,6 +226,21 @@ try {
         Write-ColorOutput "✗ SongBoss installation failed: $($_.Exception.Message)" "Red"
     }
 
+    # Remove Windows Defender exclusions (if any were added)
+    if ($exclusionsAdded -and $isAdmin -and $exclusionPaths.Count -gt 0) {
+        Write-SectionHeader "REMOVING WINDOWS DEFENDER EXCLUSIONS"
+        Write-ColorOutput "Removing temporary Windows Defender exclusions..." "Yellow"
+        try {
+            foreach ($path in $exclusionPaths) {
+                Remove-MpPreference -ExclusionPath $path -ErrorAction SilentlyContinue
+            }
+            Write-ColorOutput "[SUCCESS] Windows Defender exclusions removed successfully" "Green"
+        }
+        catch {
+            Write-ColorOutput "[WARNING] Could not remove some Windows Defender exclusions: $($_.Exception.Message)" "Yellow"
+        }
+    }
+
     # Cleanup
     Write-SectionHeader "CLEANUP"
     try {
