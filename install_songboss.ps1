@@ -314,34 +314,6 @@ function Initialize-Script {
     Write-ColorOutput "Created temporary directory: $script:tempDir" "Gray"
 }
 
-function Show-Results {
-    param([hashtable]$Results)
-    
-    Write-SectionHeader "INSTALLATION SUMMARY"
-    
-    $successCount = 0
-    foreach ($app in $Results.Keys) {
-        if ($Results[$app]) {
-            Write-ColorOutput "[SUCCESS] $app - INSTALLED" "Green"
-            $successCount++
-        } else {
-            Write-ColorOutput "[FAILED] $app - FAILED" "Red"
-        }
-    }
-    
-    Write-Host ""
-    if ($successCount -eq $Results.Count) {
-        Write-ColorOutput "[COMPLETE] All applications installed successfully! ($successCount/$($Results.Count))" "Green"
-    } elseif ($successCount -gt 0) {
-        Write-ColorOutput "[PARTIAL] Partial success: $successCount out of $($Results.Count) applications installed" "Yellow"
-    } else {
-        Write-ColorOutput "[FAILED] Installation failed for all applications" "Red"
-    }
-    
-    Write-Host ""
-    Write-ColorOutput "Note: You may need to restart your command prompt or system for PATH changes to take effect." "Cyan"
-}
-
 function Cleanup-Resources {
     Write-SectionHeader "CLEANUP"
     
@@ -377,11 +349,8 @@ try {
     $results.FFmpeg = Install-FFmpeg
     $results.VLC = Install-VLC
     $results.SongBoss = Install-SongBoss
-    
-    # Show results
-    #Show-Results -Results $results
-}
-catch {
+
+} catch {
     Write-ColorOutput "[ERROR] Script execution failed: $($_.Exception.Message)" "Red"
     Write-ColorOutput "Stack trace: $($_.ScriptStackTrace)" "Gray"
 }
