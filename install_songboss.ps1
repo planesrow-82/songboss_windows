@@ -243,13 +243,38 @@ function Install-SongBoss {
             # Brief pause to allow exclusions to take effect
             Start-Sleep -Seconds 3
             
-            # Run the installer
-            $result = Install-Application -InstallerPath $songBossInstaller -Arguments "/S" -AppName "SongBoss"
+            # Run the installer and capture the result
+            $installResult = Install-Application -InstallerPath $songBossInstaller -Arguments "/S" -AppName "SongBoss"
             
-            return $result
+            # Additional verification - check if SongBoss was actually installed
+            if ($installResult) {
+                $commonPaths = @(
+                    "${env:ProgramFiles}\SongBoss",
+                    "${env:ProgramFiles(x86)}\SongBoss",
+                    "${env:LOCALAPPDATA}\SongBoss",
+                    "${env:APPDATA}\SongBoss"
+                )
+                
+                $found = $false
+                foreach ($path in $commonPaths) {
+                    if (Test-Path $path) {
+                        Write-ColorOutput "✓ SongBoss installation verified at: $path" "Green"
+                        $found = $true
+                        break
+                    }
+                }
+                
+                if (-not $found) {
+                    Write-ColorOutput "⚠ Warning: SongBoss installer reported success but installation directory not found" "Yellow"
+                    Write-ColorOutput "  This may be normal if SongBoss installs to a non-standard location" "Yellow"
+                }
+            }
+            
+            return $installResult
+        } else {
+            Write-ColorOutput "[ERROR] Failed to download SongBoss installer" "Red"
+            return $false
         }
-        
-        return $false
     }
     catch {
         Write-ColorOutput "[ERROR] SongBoss installation failed: $($_.Exception.Message)" "Red"
