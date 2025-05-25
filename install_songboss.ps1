@@ -1,6 +1,6 @@
 # Silent Installer Script for FFmpeg, VLC, and SongBoss
 # Version: 1.0
-# Usage: iwr -useb "https://raw.githubusercontent.com/planesrow-82/songboss_windows/main/install_songboss.ps1" | iex
+# Usage: iwr -useb "https://raw.githubusercontent.com/yourusername/yourrepo/main/install.ps1" | iex
 
 param(
     [switch]$SkipPause
@@ -49,14 +49,14 @@ function Download-FileWithProgress {
         # Verify file was downloaded
         if (Test-Path $OutputPath) {
             $fileSize = (Get-Item $OutputPath).Length / 1MB
-            Write-ColorOutput "Download completed successfully! Size: $([math]::Round($fileSize, 2)) MB" "Green"
+            Write-ColorOutput "[SUCCESS] Download completed successfully! Size: $([math]::Round($fileSize, 2)) MB" "Green"
             return $true
         } else {
             throw "File not found after download"
         }
     }
     catch {
-        Write-ColorOutput "Download failed: $($_.Exception.Message)" "Red"
+        Write-ColorOutput "[ERROR] Download failed: $($_.Exception.Message)" "Red"
         return $false
     }
 }
@@ -76,15 +76,15 @@ function Install-Application {
         $process = Start-Process -FilePath $InstallerPath -ArgumentList $Arguments -Wait -PassThru -NoNewWindow
         
         if ($process.ExitCode -eq 0) {
-            Write-ColorOutput "$AppName installed successfully!" "Green"
+            Write-ColorOutput "[SUCCESS] $AppName installed successfully!" "Green"
             return $true
         } else {
-            Write-ColorOutput "$AppName installation failed with exit code: $($process.ExitCode)" "Red"
+            Write-ColorOutput "[ERROR] $AppName installation failed with exit code: $($process.ExitCode)" "Red"
             return $false
         }
     }
     catch {
-        Write-ColorOutput "Error installing $AppName`: $($_.Exception.Message)" "Red"
+        Write-ColorOutput "[ERROR] Error installing $AppName`: $($_.Exception.Message)" "Red"
         return $false
     }
 }
@@ -95,18 +95,18 @@ try {
     Clear-Host
     Write-SectionHeader "SILENT INSTALLER SCRIPT"
     Write-ColorOutput "This script will install:" "Cyan"
-    Write-ColorOutput "FFmpeg (Full version)" "White"
-    Write-ColorOutput "VLC Media Player" "White"
-    Write-ColorOutput "SongBoss v0.9.7.2" "White"
+    Write-ColorOutput "  • FFmpeg (Full version)" "White"
+    Write-ColorOutput "  • VLC Media Player" "White"
+    Write-ColorOutput "  • SongBoss v0.9.7.2" "White"
     Write-Host ""
     
     # Check admin status
     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     if ($isAdmin) {
-        Write-ColorOutput "Running as Administrator - Windows Defender exclusions will be added" "Green"
+        Write-ColorOutput "[ADMIN] Running as Administrator - Windows Defender exclusions will be added" "Green"
     } else {
-        Write-ColorOutput "Not running as Administrator - some features may be limited" "Yellow"
-        Write-ColorOutput "For best results, run PowerShell as Administrator" "Yellow"
+        Write-ColorOutput "[WARNING] Not running as Administrator - some features may be limited" "Yellow"
+        Write-ColorOutput "          For best results, run PowerShell as Administrator" "Yellow"
     }
     
     Write-Host ""
@@ -155,12 +155,12 @@ try {
                 [Environment]::SetEnvironmentVariable("Path", "$currentPath;$ffmpegBinPath", "Machine")
             }
             
-            Write-ColorOutput "FFmpeg installed successfully!" "Green"
+            Write-ColorOutput "[SUCCESS] FFmpeg installed successfully!" "Green"
             $results.FFmpeg = $true
         }
     }
     catch {
-        Write-ColorOutput "FFmpeg installation failed: $($_.Exception.Message)" "Red"
+        Write-ColorOutput "[ERROR] FFmpeg installation failed: $($_.Exception.Message)" "Red"
     }
 
     # Install VLC
@@ -175,7 +175,7 @@ try {
         }
     }
     catch {
-        Write-ColorOutput "VLC installation failed: $($_.Exception.Message)" "Red"
+        Write-ColorOutput "[ERROR] VLC installation failed: $($_.Exception.Message)" "Red"
     }
 
     # Install SongBoss
@@ -205,15 +205,15 @@ try {
                     Add-MpPreference -ExclusionPath $programFilesX86Path -ErrorAction SilentlyContinue
                     Add-MpPreference -ExclusionPath $localAppDataPath -ErrorAction SilentlyContinue
                     
-                    Write-ColorOutput "Windows Defender exclusions added successfully" "Green"
+                    Write-ColorOutput "✓ Windows Defender exclusions added successfully" "Green"
                 } else {
-                    Write-ColorOutput "Warning: Not running as administrator - cannot add Windows Defender exclusions" "Yellow"
-                    Write-ColorOutput "The installation may still work, but if it fails, try running PowerShell as Administrator" "Yellow"
+                    Write-ColorOutput "⚠ Warning: Not running as administrator - cannot add Windows Defender exclusions" "Yellow"
+                    Write-ColorOutput "  The installation may still work, but if it fails, try running PowerShell as Administrator" "Yellow"
                 }
             }
             catch {
-                Write-ColorOutput "Warning: Could not add Windows Defender exclusions: $($_.Exception.Message)" "Yellow"
-                Write-ColorOutput "Proceeding with installation anyway..." "Yellow"
+                Write-ColorOutput "⚠ Warning: Could not add Windows Defender exclusions: $($_.Exception.Message)" "Yellow"
+                Write-ColorOutput "  Proceeding with installation anyway..." "Yellow"
             }
             
             # Brief pause to allow Defender exclusions to take effect
@@ -223,7 +223,7 @@ try {
         }
     }
     catch {
-        Write-ColorOutput "SongBoss installation failed: $($_.Exception.Message)" "Red"
+        Write-ColorOutput "✗ SongBoss installation failed: $($_.Exception.Message)" "Red"
     }
 
     # Cleanup
@@ -231,10 +231,10 @@ try {
     try {
         Write-ColorOutput "Cleaning up temporary files..." "Yellow"
         Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
-        Write-ColorOutput "Cleanup completed" "Green"
+        Write-ColorOutput "[SUCCESS] Cleanup completed" "Green"
     }
     catch {
-        Write-ColorOutput "Warning: Could not clean up temporary files at $tempDir" "Yellow"
+        Write-ColorOutput "[WARNING] Could not clean up temporary files at $tempDir" "Yellow"
     }
 
     # Final results
@@ -243,20 +243,20 @@ try {
     $successCount = 0
     foreach ($app in $results.Keys) {
         if ($results[$app]) {
-            Write-ColorOutput "$app - SUCCESS" "Green"
+            Write-ColorOutput "[SUCCESS] $app - SUCCESS" "Green"
             $successCount++
         } else {
-            Write-ColorOutput "$app - FAILED" "Red"
+            Write-ColorOutput "[FAILED] $app - FAILED" "Red"
         }
     }
     
     Write-Host ""
     if ($successCount -eq $results.Count) {
-        Write-ColorOutput "All applications installed successfully! ($successCount/$($results.Count))" "Green"
+        Write-ColorOutput "[COMPLETE] All applications installed successfully! ($successCount/$($results.Count))" "Green"
     } elseif ($successCount -gt 0) {
-        Write-ColorOutput "Partial success: $successCount out of $($results.Count) applications installed" "Yellow"
+        Write-ColorOutput "[PARTIAL] Partial success: $successCount out of $($results.Count) applications installed" "Yellow"
     } else {
-        Write-ColorOutput "Installation failed for all applications" "Red"
+        Write-ColorOutput "[FAILED] Installation failed for all applications" "Red"
     }
     
     Write-Host ""
@@ -264,7 +264,7 @@ try {
 
 }
 catch {
-    Write-ColorOutput "Script execution failed: $($_.Exception.Message)" "Red"
+    Write-ColorOutput "[ERROR] Script execution failed: $($_.Exception.Message)" "Red"
 }
 finally {
     # Pause for user acknowledgment unless skipped
